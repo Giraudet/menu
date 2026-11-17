@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Menus de la semaine</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f6b4f">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{--bg:#f6f3ee;--card:#fffdf9;--ink:#23302b;--muted:#66726c;--line:#ddd6c9;--accent:#2f6b4f;--chip:#e8efe9;--today:#fff4d6}
 @media (prefers-color-scheme:dark){:root{--bg:#171c1a;--card:#1f2623;--ink:#ecefe9;--muted:#9aa8a0;--line:#33403a;--accent:#7fc4a0;--chip:#27332d;--today:#3a3523}}
@@ -47,6 +50,7 @@ pre{white-space:pre-wrap;background:var(--chip);padding:10px;border-radius:8px;f
 .form{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:10px;font-family:system-ui,sans-serif}
 .form input,.form select{width:100%;margin:6px 0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:.92rem}
 .form textarea{height:130px}
+.meal+.meal{border-top:1px dashed var(--line);margin-top:10px;padding-top:10px}
 </style>
 </head>
 <body>
@@ -136,28 +140,33 @@ const NONE={plat:"—",t:"",i:[]};
 const LIM={boeuf:1,porc:2,volaille:2,"œuf":2,poisson:3,"légumineuse":3};
 const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 function mk(d){return{plat:d.p,t:d.t,i:d.i,pers:4}}
+function meals(j){if(j&&("m" in j||"s" in j))return{m:j.m||null,s:j.s||null};const d=j&&j.plat&&j.plat!=="—"?j:null;return{m:d,s:d}}
+const pack=d=>d&&CAT.some(x=>x.p===d.plat)?d.plat:d;
+function packDay(j){if(j&&("m" in j||"s" in j))return{m:pack(j.m),s:pack(j.s)};return j.plat!=="—"&&CAT.some(d=>d.p===j.plat)?j.plat:j}
 function ok(tags){
-  const c={},k=tags.filter(Boolean).length;
+  const c={},k=tags.filter(Boolean).length,f=k>7?2:1;
   for(let i=0;i<tags.length;i++){if(tags[i])c[tags[i]]=(c[tags[i]]||0)+1;if(i&&tags[i]&&tags[i]===tags[i-1])return false}
-  for(const t in LIM)if((c[t]||0)>LIM[t])return false;
-  if((c.poisson||0)<(k>=5?2:k>=3?1:0))return false;
-  if((c["légumineuse"]||0)<(k>=4?1:0))return false;
+  for(const t in LIM)if((c[t]||0)>LIM[t]*f)return false;
+  if((c.poisson||0)<(k>=10?3:k>=5?2:k>=3?1:0))return false;
+  if((c["légumineuse"]||0)<(k>=10?2:k>=4?1:0))return false;
   return true}
 function gen(key){
-  const pr=getPres(key),idx=pr.map((p,n)=>portions(p)?n:-1).filter(n=>n>=0);
+  const pr=getPres(key),slots=[];
+  pr.forEach((p,n)=>{if(p.m)slots.push([n,"m"]);if(p.s)slots.push([n,"s"])});
   let best=null;
-  for(let a=0;a<500;a++){
-    const pick=shuffle(CAT).slice(0,idx.length),tags=Array(7).fill("");
-    idx.forEach((n,x)=>tags[n]=pick[x].t);
-    best=pick;if(ok(tags))break}
-  const out=Array.from({length:7},()=>({...NONE}));
-  idx.forEach((n,x)=>out[n]=mk(best[x]));
+  for(let a=0;a<1000;a++){
+    const pick=shuffle(CAT).slice(0,slots.length);best=pick;
+    if(ok(pick.map(d=>d.t)))break}
+  const out=Array.from({length:7},()=>({m:null,s:null}));
+  slots.forEach(([n,k],x)=>out[n][k]=mk(best[x]));
   const w=store("weeks")||{};w[key]=out;store("weeks",w);push("w",key,out)}
-function swap(key,n){
-  const w=store("weeks")||{},days=JSON.parse(JSON.stringify(weeks()[key])),used=new Set(days.map(j=>j.plat));
+function swap(key,n,k){
+  const w=store("weeks")||{},days=JSON.parse(JSON.stringify(weeks()[key])).map(j=>{const m=meals(j);return{m:m.m,s:m.s}});
+  const used=new Set();days.forEach(j=>{if(j.m)used.add(j.m.plat);if(j.s)used.add(j.s.plat)});
+  const seq=dd=>{const t=[];days.forEach((j,i)=>["m","s"].forEach(kk=>{const x=(i===n&&kk===k)?dd:j[kk];if(x)t.push(x.t||"")}));return t};
   const cand=shuffle(CAT.filter(d=>!used.has(d.p)));
-  const d=cand.find(d=>ok(days.map((j,i)=>i===n?d.t:j.t||"")))||cand[0]||CAT[0];
-  days[n]=mk(d);w[key]=days;store("weeks",w);push("w",key,days,n)}
+  const d=cand.find(d=>ok(seq(d)))||cand[0]||CAT[0];
+  days[n][k]=mk(d);w[key]=days;store("weeks",w);push("w",key,days,n)}
 const $=id=>document.getElementById(id);
 const store=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
 const pad=n=>String(n).padStart(2,"0");
@@ -181,7 +190,7 @@ function importData(o){
   if(location.hash.startsWith("#d=")){try{
     const o=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(location.hash.slice(3))))));
     const c0=[...CAT,...(o.c||[])],W={};
-    Object.keys(o.w||{}).forEach(k=>W[k]=o.w[k].map(j=>{if(typeof j!=="string")return j;const d=c0.find(x=>x.p===j);return d?mk(d):{...NONE}}));
+    Object.keys(o.w||{}).forEach(k=>W[k]=o.w[k].map(j=>{const up=x=>{if(typeof x!=="string")return x;const d=c0.find(y=>y.p===x);return d?mk(d):null};return typeof j==="string"?(up(j)||{...NONE}):(j&&("m" in j||"s" in j))?{m:up(j.m),s:up(j.s)}:j}));
     store("weeks",Object.assign(store("weeks")||{},W));
     store("pres",Object.assign(store("pres")||{},o.p||{}));
     if(o.c){const c=store("custom")||[];o.c.forEach(d=>{if(!c.some(x=>x.p===d.p))c.push(d)});store("custom",c)}
@@ -192,6 +201,7 @@ function scale(q,u,f){if(q==null)return null;const v=q*f;return u===""?Math.ceil
 function qty(q,u){if(q==null)return"";if(u==="g"&&q>=1000)return(q/1000).toString().replace(".",",")+" kg ";return q.toString().replace(".",",")+(u?" "+u+" ":" ")}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 function link(j){return j.lien&&/^https?:\/\//.test(j.lien)?j.lien:"https://www.marmiton.org/recettes/recherche.aspx?aqt="+encodeURIComponent(j.plat)}
+function mealsTxt(j,p){const m=meals(j),a=[];if(p.m&&m.m)a.push("Midi : "+m.m.plat);if(p.s&&m.s)a.push("Soir : "+m.s.plat);return a.length?`<p class="sm">${esc(a.join(" — "))}</p>`:""}
 function dateBox(d){return `<div class="date"><span>${d.toLocaleDateString("fr-FR",{weekday:"short"})}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString("fr-FR",{month:"short"})}</span></div>`}
 function who(p){const a=[];if(p.m)a.push("Midi : "+p.mn+" pers.");if(p.s)a.push("Soir : "+p.sn+" pers.");return a.join(" — ")}
 
@@ -266,7 +276,7 @@ function render(){
   if(tab==="plan"){
     v.innerHTML=pr.map((p,n)=>{const d=addDays(cur,n);
       const row=(k,nk,lab)=>`<div class="row"><label><input type="checkbox" data-d="${n}" data-k="${k}" ${p[k]?"checked":""}> ${lab}</label><input type="number" min="1" max="20" data-d="${n}" data-k="${nk}" value="${p[nk]}" aria-label="Personnes ${lab.toLowerCase()}"> pers.</div>`;
-      return `<section class="day${iso(d)===today?" today":""}">${dateBox(d)}<div>${row("m","mn","Midi")}${row("s","sn","Soir")}${data&&data[n].plat!=="—"?`<p class="sm">${esc(data[n].plat)}</p>`:""}</div></section>`}).join("")+`<p><button id="gen" class="on">Générer les menus de la semaine</button><span class="msg" id="gm"></span></p><p class="sm">Les plats sont choisis parmi 30 recettes équilibrées (protéine, féculent, légumes), avec des protéines variées sur la semaine : poisson, légumineuses, peu de viande rouge et de charcuterie. Cela remplace le menu de cette semaine.</p>`;
+      return `<section class="day${iso(d)===today?" today":""}">${dateBox(d)}<div>${row("m","mn","Midi")}${row("s","sn","Soir")}${data?mealsTxt(data[n],p):""}</div></section>`}).join("")+`<p><button id="gen" class="on">Générer les menus de la semaine</button><span class="msg" id="gm"></span></p><p class="sm">Les plats sont choisis parmi 30 recettes équilibrées (protéine, féculent, légumes), avec des protéines variées sur la semaine : poisson, légumineuses, peu de viande rouge et de charcuterie. Si midi et soir sont cochés le même jour, chaque repas a son propre plat. Cela remplace le menu de cette semaine.</p>`;
     v.querySelectorAll("input").forEach(c=>c.onchange=()=>{
       const p=getPres(key),x=p[+c.dataset.d],k=c.dataset.k;
       x[k]=c.type==="checkbox"?(c.checked?1:0):Math.min(20,Math.max(1,parseInt(c.value)||1));
@@ -284,16 +294,18 @@ function render(){
     return}
   if(!data){v.innerHTML='<p class="empty">Aucun menu pour cette semaine.<br>Renseigne les présences puis clique sur « Générer les menus », ou ajoute un menu avec « Ajouter ou modifier une semaine » en bas de page.</p>';return}
   if(tab==="menu"){
-    v.innerHTML=data.map((j,n)=>{const d=addDays(cur,n),p=pr[n],po=portions(p),f=po/(j.pers||4);
-      if(!po)return `<section class="day dim">${dateBox(d)}<div><h2>${esc(j.plat)}</h2><p class="sm">Pas de repas prévu</p></div></section>`;
-      return `<section class="day${iso(d)===today?" today":""}">${dateBox(d)}
-      <div><h2>${j.plat==="—"?"Pas de plat choisi":esc(j.plat)}</h2><p class="sm">${who(p)}</p><ul class="ch">${j.i.map(x=>`<li>${esc(qty(scale(x[1],x[2],f),x[2])+x[0])}</li>`).join("")}</ul>
-      ${j.plat==="—"?"":`<a class="r" href="${esc(link(j))}" target="_blank" rel="noopener">${j.lien?"Voir la recette":"Chercher une recette"}</a> `}<button data-sw="${n}">Changer de plat</button></div></section>`}).join("");
-    v.querySelectorAll("button[data-sw]").forEach(b=>b.onclick=()=>{swap(key,+b.dataset.sw);render()});
+    v.innerHTML=data.map((j,n)=>{const d=addDays(cur,n),p=pr[n],ms=meals(j),bl=[["m","Midi",p.m,p.mn],["s","Soir",p.s,p.sn]].filter(b=>b[2]);
+      if(!bl.length)return `<section class="day dim">${dateBox(d)}<div><p class="sm">Pas de repas prévu</p></div></section>`;
+      return `<section class="day${iso(d)===today?" today":""}">${dateBox(d)}<div>`+bl.map(([k,lab,,np])=>{const x=ms[k];
+        if(!x)return `<div class="meal"><p class="sm"><b>${lab}</b> · ${np} pers.</p><h2>Pas de plat choisi</h2><button data-sw="${n}" data-k="${k}">Choisir un plat</button></div>`;
+        const f=np/(x.pers||4);
+        return `<div class="meal"><p class="sm"><b>${lab}</b> · ${np} pers.</p><h2>${esc(x.plat)}</h2><ul class="ch">${x.i.map(y=>`<li>${esc(qty(scale(y[1],y[2],f),y[2])+y[0])}</li>`).join("")}</ul><a class="r" href="${esc(link(x))}" target="_blank" rel="noopener">${x.lien?"Voir la recette":"Chercher une recette"}</a> <button data-sw="${n}" data-k="${k}">Changer de plat</button></div>`}).join("")+`</div></section>`}).join("");
+    v.querySelectorAll("button[data-sw]").forEach(b=>b.onclick=()=>{swap(key,+b.dataset.sw,b.dataset.k);render()});
   }else{
     const m={};
-    data.forEach((j,n)=>{const po=portions(pr[n]);if(!po)return;const f=po/(j.pers||4);
-      j.i.forEach(([nm,q,u])=>{const k=nm+"|"+u;if(!m[k])m[k]={n:nm,u,q:null};const s=scale(q,u,f);if(s!=null)m[k].q=(m[k].q||0)+s})});
+    data.forEach((j,n)=>{const ms=meals(j);
+      [["m",pr[n].m,pr[n].mn],["s",pr[n].s,pr[n].sn]].forEach(([kk,on,np])=>{const x=ms[kk];if(!on||!x)return;const f=np/(x.pers||4);
+        x.i.forEach(([nm,q,u])=>{const k=nm+"|"+u;if(!m[k])m[k]={n:nm,u,q:null};const s=scale(q,u,f);if(s!=null)m[k].q=(m[k].q||0)+s})})});
     const items=Object.values(m).sort((a,b)=>a.n.localeCompare(b.n,"fr"));
     if(!items.length){v.innerHTML='<p class="empty">Aucun repas prévu cette semaine.<br>Renseigne les présences pour générer la liste.</p>';return}
     const done=store("c:"+key)||[];
@@ -315,7 +327,7 @@ $("tCat").onclick=()=>{tab="cat";render()};
 $("imp").onclick=()=>{try{const o=JSON.parse($("json").value);importData(o);cur=monday(parse(o.start));$("json").value="";$("msg").textContent=" Semaine enregistrée";render()}catch(e){$("msg").textContent=" JSON invalide : vérifie le format"}};
 function shareUrl(){
   const lim=iso(addDays(monday(new Date()),-7)),w={},p={},all=store("weeks")||{},pr=store("pres")||{};
-  Object.keys(all).filter(k=>k>=lim).forEach(k=>w[k]=all[k].map(j=>j.plat!=="—"&&CAT.some(d=>d.p===j.plat)?j.plat:j));
+  Object.keys(all).filter(k=>k>=lim).forEach(k=>w[k]=all[k].map(packDay));
   Object.keys(pr).filter(k=>k>=lim).forEach(k=>p[k]=pr[k]);
   const o={w,p,c:store("custom")||[]};
   return location.origin+location.pathname+"#d="+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))))}
@@ -331,6 +343,7 @@ $("sv").onclick=()=>{store("sync",{repo:$("sr").value.trim(),token:$("st").value
 loadCustom();render();
 pull().then(render);
 document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull().then(render)});
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
 </script>
 </body>
 </html>
