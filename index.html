@@ -193,6 +193,7 @@ function importData(o){
     Object.keys(o.w||{}).forEach(k=>W[k]=o.w[k].map(j=>{const up=x=>{if(typeof x!=="string")return x;const d=c0.find(y=>y.p===x);return d?mk(d):null};return typeof j==="string"?(up(j)||{...NONE}):(j&&("m" in j||"s" in j))?{m:up(j.m),s:up(j.s)}:j}));
     store("weeks",Object.assign(store("weeks")||{},W));
     store("pres",Object.assign(store("pres")||{},o.p||{}));
+    if(o.l)store("links",Object.assign(store("links")||{},o.l));
     if(o.c){const c=store("custom")||[];o.c.forEach(d=>{if(!c.some(x=>x.p===d.p))c.push(d)});store("custom",c)}
   }catch(e){}history.replaceState(null,"",location.pathname)}
 })();
@@ -200,7 +201,10 @@ function importData(o){
 function scale(q,u,f){if(q==null)return null;const v=q*f;return u===""?Math.ceil(v-1e-9):Math.max(5,Math.round(v/5)*5)}
 function qty(q,u){if(q==null)return"";if(u==="g"&&q>=1000)return(q/1000).toString().replace(".",",")+" kg ";return q.toString().replace(".",",")+(u?" "+u+" ":" ")}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function link(j){return j.lien&&/^https?:\/\//.test(j.lien)?j.lien:"https://www.marmiton.org/recettes/recherche.aspx?aqt="+encodeURIComponent(j.plat)}
+const LK=()=>store("links")||{};
+const hasLink=j=>{const u=j.lien||LK()[j.plat];return !!u&&/^https?:\/\//.test(u)};
+function link(j){const u=j.lien||LK()[j.plat];return u&&/^https?:\/\//.test(u)?u:"https://www.marmiton.org/recettes/recherche.aspx?aqt="+encodeURIComponent(j.plat)}
+function setLink(plat,url){const l=LK();if(url)l[plat]=url;else delete l[plat];store("links",l);push("l",plat,url||"")}
 function mealsTxt(j,p){const m=meals(j),a=[];if(p.m&&m.m)a.push("Midi : "+m.m.plat);if(p.s&&m.s)a.push("Soir : "+m.s.plat);return a.length?`<p class="sm">${esc(a.join(" — "))}</p>`:""}
 function dateBox(d){return `<div class="date"><span>${d.toLocaleDateString("fr-FR",{weekday:"short"})}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString("fr-FR",{month:"short"})}</span></div>`}
 function who(p){const a=[];if(p.m)a.push("Midi : "+p.mn+" pers.");if(p.s)a.push("Soir : "+p.sn+" pers.");return a.join(" — ")}
@@ -213,13 +217,14 @@ function parseIng(txt){return txt.split("\n").map(l=>l.trim()).filter(Boolean).m
   if(u==="kg"){q*=1000;u="g"}else if(u==="l"){q*=100;u="cl"}else if(u==="ml"){q/=10;u="cl"}
   return[m[3].trim(),q,u]})}
 function formHtml(F){const m=fm;fm="";
-  return `<details${m?" open":""}><summary>Ajouter un plat</summary><div class="form"><input id="dn" placeholder="Nom du plat" aria-label="Nom du plat"><select id="dt" aria-label="Famille de protéine">${Object.keys(F).map(t=>`<option value="${t}">${F[t]}</option>`).join("")}</select><textarea id="di" aria-label="Ingrédients" placeholder="Un ingrédient par ligne, pour 4 personnes :&#10;300 g riz&#10;3 courgettes&#10;2 boîtes de thon"></textarea><button id="da" class="on">Enregistrer le plat</button><span class="msg" id="dm">${m}</span><p class="sm">La famille de protéine sert à varier les menus : choisis celle du plat principal.</p></div></details>`}
+  return `<details${m?" open":""}><summary>Ajouter un plat</summary><div class="form"><input id="dn" placeholder="Nom du plat" aria-label="Nom du plat"><select id="dt" aria-label="Famille de protéine">${Object.keys(F).map(t=>`<option value="${t}">${F[t]}</option>`).join("")}</select><input id="dl" placeholder="Lien de la recette (facultatif)" aria-label="Lien de la recette"><textarea id="di" aria-label="Ingrédients" placeholder="Un ingrédient par ligne, pour 4 personnes :&#10;300 g riz&#10;3 courgettes&#10;2 boîtes de thon"></textarea><button id="da" class="on">Enregistrer le plat</button><span class="msg" id="dm">${m}</span><p class="sm">La famille de protéine sert à varier les menus : choisis celle du plat principal.</p></div></details>`}
 function bindForm(v){
   $("da").onclick=()=>{
     const name=$("dn").value.trim(),t=$("dt").value,i=parseIng($("di").value);
     if(!name||!i.length){$("dm").textContent=" Indique un nom et au moins un ingrédient";return}
     if(CAT.some(d=>d.p.toLowerCase()===name.toLowerCase())){$("dm").textContent=" Ce plat existe déjà";return}
-    const d={p:name,t,i,c:1},c=store("custom")||[];c.push(d);store("custom",c);CAT.push(d);catF="";fm=" Plat ajouté";push("c",null,c);render()};
+    const lk=$("dl").value.trim();if(lk&&!/^https?:\/\//.test(lk)){$("dm").textContent=" Le lien doit commencer par http:// ou https://";return}
+    const d={p:name,t,i,c:1},c=store("custom")||[];if(lk)setLink(name,lk);c.push(d);store("custom",c);CAT.push(d);catF="";fm=" Plat ajouté";push("c",null,c);render()};
   v.querySelectorAll("button[data-del]").forEach(b=>b.onclick=()=>{
     const n=b.dataset.del;store("custom",(store("custom")||[]).filter(d=>d.p!==n));
     const k=CAT.findIndex(d=>d.p===n);if(k>=0)CAT.splice(k,1);push("c",null,store("custom")||[]);render()})}
@@ -246,7 +251,7 @@ async function ghPut(c,data,sha){
   return"ok"}
 async function pushAll(c){
   const k={};try{Object.keys(localStorage).filter(x=>x.startsWith("c:")).forEach(x=>k[x.slice(2)]=store(x))}catch(e){}
-  await ghPut(c,{w:store("weeks")||{},p:store("pres")||{},c:store("custom")||[],k},null)}
+  await ghPut(c,{w:store("weeks")||{},p:store("pres")||{},c:store("custom")||[],l:store("links")||{},k},null)}
 async function pull(){
   const c=cfg();if(!c.repo)return;
   try{const{data,sha}=await ghGet(c);
@@ -255,6 +260,7 @@ async function pull(){
     store("pres",Object.assign(store("pres")||{},data.p||{}));
     Object.keys(data.k||{}).forEach(k=>store("c:"+k,data.k[k]));
     if(data.c){store("custom",data.c);reloadCustom()}
+    if(data.l)store("links",Object.assign(store("links")||{},data.l))
     setMsg(" Synchronisé")}
   catch(e){setMsg(" Synchronisation impossible ("+e.message+")")}}
 let q=Promise.resolve();
@@ -288,8 +294,13 @@ function render(){
     const F={poisson:"Poisson",volaille:"Volaille",boeuf:"Bœuf haché",porc:"Porc et charcuterie","œuf":"Œufs","légumineuse":"Légumineuses"};
     const list=CAT.filter(d=>!catF||d.t===catF);
     v.innerHTML=formHtml(F)+`<div class="tabs"><button data-f="" class="${catF?"":"on"}">Tous (${CAT.length})</button>${Object.keys(F).map(t=>`<button data-f="${t}" class="${catF===t?"on":""}">${F[t]}</button>`).join("")}</div>`+
-    list.map(d=>`<section class="day" style="grid-template-columns:1fr"><div><h2>${esc(d.p)}</h2><p class="sm">${F[d.t]} · quantités pour 4 personnes</p><ul class="ch">${d.i.map(x=>`<li>${esc(qty(x[1],x[2])+x[0])}</li>`).join("")}</ul><a class="r" href="${esc(link({plat:d.p}))}" target="_blank" rel="noopener">Chercher une recette</a>${d.c?` <button data-del="${esc(d.p)}">Supprimer</button>`:""}</div></section>`).join("");
+    list.map(d=>`<section class="day" style="grid-template-columns:1fr"><div><h2>${esc(d.p)}</h2><p class="sm">${F[d.t]} · quantités pour 4 personnes</p><ul class="ch">${d.i.map(x=>`<li>${esc(qty(x[1],x[2])+x[0])}</li>`).join("")}</ul><a class="r" href="${esc(link({plat:d.p}))}" target="_blank" rel="noopener">${hasLink({plat:d.p})?"Voir la recette":"Chercher une recette"}</a> <button data-lk="${esc(d.p)}">${hasLink({plat:d.p})?"Modifier le lien":"Mettre mon lien"}</button>${d.c?` <button data-del="${esc(d.p)}">Supprimer</button>`:""}</div></section>`).join("");
     v.querySelectorAll("button[data-f]").forEach(b=>b.onclick=()=>{catF=b.dataset.f;render()});
+    v.querySelectorAll("button[data-lk]").forEach(b=>b.onclick=()=>{
+      const p=b.dataset.lk,u=prompt("Adresse de la recette pour « "+p+" » (laisser vide pour la retirer) :",LK()[p]||"");
+      if(u===null)return;const t=u.trim();
+      if(t&&!/^https?:\/\//.test(t)){alert("L’adresse doit commencer par http:// ou https://");return}
+      setLink(p,t);render()});
     bindForm(v);
     return}
   if(!data){v.innerHTML='<p class="empty">Aucun menu pour cette semaine.<br>Renseigne les présences puis clique sur « Générer les menus », ou ajoute un menu avec « Ajouter ou modifier une semaine » en bas de page.</p>';return}
@@ -299,7 +310,7 @@ function render(){
       return `<section class="day${iso(d)===today?" today":""}">${dateBox(d)}<div>`+bl.map(([k,lab,,np])=>{const x=ms[k];
         if(!x)return `<div class="meal"><p class="sm"><b>${lab}</b> · ${np} pers.</p><h2>Pas de plat choisi</h2><button data-sw="${n}" data-k="${k}">Choisir un plat</button></div>`;
         const f=np/(x.pers||4);
-        return `<div class="meal"><p class="sm"><b>${lab}</b> · ${np} pers.</p><h2>${esc(x.plat)}</h2><ul class="ch">${x.i.map(y=>`<li>${esc(qty(scale(y[1],y[2],f),y[2])+y[0])}</li>`).join("")}</ul><a class="r" href="${esc(link(x))}" target="_blank" rel="noopener">${x.lien?"Voir la recette":"Chercher une recette"}</a> <button data-sw="${n}" data-k="${k}">Changer de plat</button></div>`}).join("")+`</div></section>`}).join("");
+        return `<div class="meal"><p class="sm"><b>${lab}</b> · ${np} pers.</p><h2>${esc(x.plat)}</h2><ul class="ch">${x.i.map(y=>`<li>${esc(qty(scale(y[1],y[2],f),y[2])+y[0])}</li>`).join("")}</ul><a class="r" href="${esc(link(x))}" target="_blank" rel="noopener">${hasLink(x)?"Voir la recette":"Chercher une recette"}</a> <button data-sw="${n}" data-k="${k}">Changer de plat</button></div>`}).join("")+`</div></section>`}).join("");
     v.querySelectorAll("button[data-sw]").forEach(b=>b.onclick=()=>{swap(key,+b.dataset.sw,b.dataset.k);render()});
   }else{
     const m={};
@@ -329,7 +340,7 @@ function shareUrl(){
   const lim=iso(addDays(monday(new Date()),-7)),w={},p={},all=store("weeks")||{},pr=store("pres")||{};
   Object.keys(all).filter(k=>k>=lim).forEach(k=>w[k]=all[k].map(packDay));
   Object.keys(pr).filter(k=>k>=lim).forEach(k=>p[k]=pr[k]);
-  const o={w,p,c:store("custom")||[]};
+  const o={w,p,c:store("custom")||[],l:store("links")||{}};
   return location.origin+location.pathname+"#d="+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))))}
 function setMsg(t){["msg","msg2"].forEach(id=>{if($(id))$(id).textContent=t})}
 async function doShare(){
