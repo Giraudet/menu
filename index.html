@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Menus de la semaine</title>
+<style>
+:root{--bg:#f6f3ee;--card:#fffdf9;--ink:#23302b;--muted:#66726c;--line:#ddd6c9;--accent:#2f6b4f;--chip:#e8efe9;--today:#fff4d6}
+@media (prefers-color-scheme:dark){:root{--bg:#171c1a;--card:#1f2623;--ink:#ecefe9;--muted:#9aa8a0;--line:#33403a;--accent:#7fc4a0;--chip:#27332d;--today:#3a3523}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,serif;line-height:1.5;padding-top:env(safe-area-inset-top,0)}
+main{max-width:720px;margin:0 auto;padding:20px 16px 56px}
+h1{font-size:1.7rem;margin:0 0 14px}
+button,textarea,input,a.r{font-family:system-ui,sans-serif;font-size:.92rem}
+button{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+.bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.bar .lbl{flex:1;text-align:center;font-weight:bold;min-width:160px}
+.tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.day{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:56px 1fr;gap:12px}
+.day.today{background:var(--today)}
+.day.dim{opacity:.6}
+.date{text-align:center;font-family:system-ui,sans-serif;line-height:1.1}
+.date b{display:block;font-size:1.6rem}
+.date span{font-size:.8rem;color:var(--muted)}
+.day h2{font-size:1.1rem;margin:0}
+.sm{color:var(--muted);font-family:system-ui,sans-serif;font-size:.85rem;margin:2px 0 0}
+ul.ch{list-style:none;padding:0;margin:8px 0 0;display:flex;flex-wrap:wrap;gap:6px}
+ul.ch li{background:var(--chip);border-radius:999px;padding:2px 10px;font-family:system-ui,sans-serif;font-size:.85rem}
+a.r{display:inline-block;margin-top:8px;color:var(--accent);font-weight:600}
+.row{display:flex;align-items:center;gap:10px;font-family:system-ui,sans-serif;padding:3px 0}
+.row label{display:flex;gap:6px;align-items:center;min-width:84px}
+.row input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
+.row input[type=number]{width:60px;padding:5px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.list{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:6px 16px}
+.list label{display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-family:system-ui,sans-serif}
+.list label:last-child{border:0}
+.list input{width:20px;height:20px;accent-color:var(--accent)}
+.list input:checked+span{text-decoration:line-through;color:var(--muted)}
+.empty{color:var(--muted);font-family:system-ui,sans-serif;padding:24px 0;text-align:center}
+details{margin-top:24px;font-family:system-ui,sans-serif;font-size:.9rem}
+summary{cursor:pointer;font-weight:600}
+textarea{width:100%;height:170px;margin:10px 0;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--card);color:var(--ink)}
+pre{white-space:pre-wrap;background:var(--chip);padding:10px;border-radius:8px;font-size:.8rem}
+.msg{color:var(--accent);margin-left:8px;font-family:system-ui,sans-serif;font-size:.9rem}
+.form{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:10px;font-family:system-ui,sans-serif}
+.form input,.form select{width:100%;margin:6px 0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:.92rem}
+.form textarea{height:130px}
+</style>
+</head>
+<body>
+<main>
+<h1>Menus de la semaine</h1>
+<div class="bar">
+  <button id="prev" aria-label="Semaine précédente">‹</button>
+  <div class="lbl" id="lbl"></div>
+  <button id="next" aria-label="Semaine suivante">›</button>
+  <button id="now">Aujourd’hui</button>
+  <button id="share2">Envoyer / sauvegarder</button>
+</div>
+<div class="msg" id="msg2" style="margin:-6px 0 10px"></div>
+<div class="tabs">
+  <button id="tPlan">Présences</button>
+  <button id="tMenu">Menu</button>
+  <button id="tList">Liste de courses</button>
+  <button id="tCat">Tous les plats</button>
+</div>
+<div id="view"></div>
+
+<details>
+<summary>Ajouter ou modifier une semaine</summary>
+<p>Demande à ChatGPT de te répondre dans ce format, puis colle le résultat ci-dessous :</p>
+<pre>{"start":"AAAA-MM-JJ (le lundi)","pers":4,"jours":[{"plat":"Nom du plat","i":[["ingrédient",quantité,"unité"]],"lien":"https://… (facultatif)"}]}
+7 jours, du lundi au dimanche. "pers" = nombre de personnes pour lequel les quantités sont données. Unités : g, cl, ou vide. Quantité null si non précisée.</pre>
+<textarea id="json" placeholder="Colle le JSON ici" aria-label="JSON du menu"></textarea>
+<button id="imp">Enregistrer la semaine</button>
+<button id="share">Copier le lien de partage</button><span class="msg" id="msg"></span>
+<p>Le lien contient la semaine dernière, les semaines à venir, les présences et les plats ajoutés. Ouvert sur un autre téléphone, il les restaure.</p>
+</details>
+
+<details>
+<summary>Synchronisation GitHub</summary>
+<div class="form">
+<p class="sm">Dépôt (rempli automatiquement sur github.io) :</p>
+<input id="sr" placeholder="pseudo/nom-du-depot" aria-label="Dépôt GitHub">
+<p class="sm">Jeton d’accès (propre à cet appareil, ne le partage jamais publiquement) :</p>
+<input id="st" type="password" placeholder="github_pat_…" aria-label="Jeton GitHub" autocomplete="off">
+<button id="sv" class="on">Enregistrer et synchroniser</button>
+<p class="sm">Les menus, présences, plats ajoutés et cases de courses sont alors enregistrés dans le fichier data.json du dépôt et partagés entre tous les appareils.</p>
+</div>
+</details>
+</main>
+<script>
+const SEED={"2026-11-16":[
+{plat:"Spaghetti bolognaise",i:[["spaghetti",500,"g"],["viande hachée",400,"g"],["tomates concassées (boîte)",1,""],["oignon",1,""]]},
+{plat:"Poulet à la crème et champignons, riz",i:[["poulet",600,"g"],["champignons",250,"g"],["crème",20,"cl"],["riz",300,"g"]]},
+{plat:"Gratin pommes de terre-jambon",i:[["pommes de terre",1200,"g"],["tranches de jambon",4,""],["lait",30,"cl"],["fromage râpé",150,"g"]]},
+{plat:"Lentilles-saucisses",i:[["lentilles sèches",350,"g"],["saucisses",4,""],["carottes",2,""],["oignon",1,""]]},
+{plat:"Pizzas maison",i:[["pâtes à pizza",2,""],["coulis de tomate (boîte)",1,""],["jambon",200,"g"],["fromage râpé",150,"g"],["légumes au choix",null,""]]},
+{plat:"Gratin de riz au thon",i:[["riz",300,"g"],["thon (boîtes)",2,""],["crème",20,"cl"],["fromage râpé",100,"g"]]},
+{plat:"Omelette aux pommes de terre et salade",i:[["œufs",8,""],["pommes de terre",400,"g"],["salade verte",1,""]]}]};
+const CAT=[
+{p:"Gratin de riz au thon et courgettes",t:"poisson",i:[["riz",300,"g"],["thon (boîtes)",2,""],["courgettes",3,""],["crème",10,"cl"],["fromage râpé",80,"g"]]},
+{p:"Pâtes au thon, tomate et haricots verts",t:"poisson",i:[["pâtes",350,"g"],["thon (boîtes)",2,""],["coulis de tomate (boîte)",1,""],["haricots verts",400,"g"],["oignon",1,""]]},
+{p:"Colin, pommes de terre vapeur et haricots verts",t:"poisson",i:[["filets de colin",600,"g"],["pommes de terre",800,"g"],["haricots verts",400,"g"],["citron",1,""]]},
+{p:"Salade de riz au thon et crudités",t:"poisson",i:[["riz",250,"g"],["thon (boîtes)",2,""],["tomates",4,""],["maïs (boîte)",1,""],["concombre",1,""]]},
+{p:"Poulet aux champignons, riz et haricots verts",t:"volaille",i:[["poulet",600,"g"],["champignons",250,"g"],["crème",10,"cl"],["riz",300,"g"],["haricots verts",400,"g"]]},
+{p:"Poulet rôti, pommes de terre et carottes",t:"volaille",i:[["cuisses de poulet",800,"g"],["pommes de terre",800,"g"],["carottes",500,"g"],["ail (gousses)",3,""]]},
+{p:"Wok de poulet, légumes et riz",t:"volaille",i:[["poulet",500,"g"],["poêlée de légumes surgelée",600,"g"],["riz",300,"g"],["sauce soja (c. à soupe)",3,""]]},
+{p:"Hachis parmentier et salade verte",t:"boeuf",i:[["viande hachée",400,"g"],["pommes de terre",1000,"g"],["oignon",1,""],["carottes",2,""],["lait",20,"cl"],["salade verte",1,""]]},
+{p:"Chili con carne et riz",t:"boeuf",i:[["viande hachée",300,"g"],["haricots rouges (boîte)",1,""],["tomates concassées (boîte)",1,""],["poivron",1,""],["riz",250,"g"],["oignon",1,""]]},
+{p:"Spaghetti bolognaise et salade verte",t:"boeuf",i:[["spaghetti",400,"g"],["viande hachée",300,"g"],["tomates concassées (boîte)",1,""],["carottes",2,""],["oignon",1,""],["salade verte",1,""]]},
+{p:"Lentilles-saucisses et carottes",t:"porc",i:[["lentilles sèches",300,"g"],["saucisses",4,""],["carottes",3,""],["oignon",1,""]]},
+{p:"Gratin de chou-fleur, jambon et pommes de terre",t:"porc",i:[["chou-fleur",1,""],["tranches de jambon",4,""],["pommes de terre",600,"g"],["lait",40,"cl"],["farine",30,"g"],["fromage râpé",80,"g"]]},
+{p:"Sauté de porc, carottes et riz",t:"porc",i:[["sauté de porc",500,"g"],["carottes",500,"g"],["riz",300,"g"],["oignon",1,""]]},
+{p:"Pizzas maison aux légumes et salade",t:"porc",i:[["pâtes à pizza",2,""],["coulis de tomate (boîte)",1,""],["jambon",100,"g"],["fromage râpé",150,"g"],["champignons",200,"g"],["poivron",1,""],["salade verte",1,""]]},
+{p:"Omelette, pommes de terre et salade de tomates",t:"œuf",i:[["œufs",8,""],["pommes de terre",400,"g"],["salade verte",1,""],["tomates",3,""]]},
+{p:"Quiche aux poireaux et salade",t:"œuf",i:[["pâte brisée",1,""],["poireaux",3,""],["œufs",3,""],["lait",20,"cl"],["fromage râpé",80,"g"],["salade verte",1,""]]},
+{p:"Riz cantonais aux petits pois",t:"œuf",i:[["riz",300,"g"],["œufs",4,""],["petits pois (boîte)",1,""],["carottes",2,""],["tranches de jambon",2,""]]},
+{p:"Curry de pois chiches, épinards et riz",t:"légumineuse",i:[["pois chiches (boîtes)",2,""],["épinards surgelés",500,"g"],["lait de coco",20,"cl"],["tomates concassées (boîte)",1,""],["oignon",1,""],["riz",300,"g"]]},
+{p:"Dahl de lentilles corail et riz",t:"légumineuse",i:[["lentilles corail",300,"g"],["carottes",2,""],["tomates concassées (boîte)",1,""],["lait de coco",20,"cl"],["oignon",1,""],["riz",250,"g"]]},
+{p:"Salade de lentilles, œufs durs et crudités",t:"légumineuse",i:[["lentilles sèches",300,"g"],["œufs",4,""],["tomates",3,""],["carottes",3,""],["oignon",1,""]]},
+{p:"Colin, semoule et ratatouille",t:"poisson",i:[["filets de colin",600,"g"],["semoule",300,"g"],["ratatouille surgelée",800,"g"]]},
+{p:"Tarte au thon, tomates et courgettes, salade",t:"poisson",i:[["pâte brisée",1,""],["thon (boîtes)",2,""],["tomates",3,""],["courgettes",2,""],["œufs",3,""],["salade verte",1,""]]},
+{p:"Chili sin carne et riz",t:"légumineuse",i:[["haricots rouges (boîtes)",2,""],["maïs (boîte)",1,""],["tomates concassées (boîte)",1,""],["poivron",1,""],["oignon",1,""],["riz",250,"g"]]},
+{p:"Pâtes aux pois chiches, tomates et épinards",t:"légumineuse",i:[["pâtes",350,"g"],["pois chiches (boîte)",1,""],["épinards surgelés",400,"g"],["tomates concassées (boîte)",1,""],["ail (gousses)",2,""]]},
+{p:"Salade de pois chiches, feta et semoule",t:"légumineuse",i:[["pois chiches (boîtes)",2,""],["feta",200,"g"],["semoule",250,"g"],["tomates",3,""],["concombre",1,""]]},
+{p:"Poulet au curry, courgettes et riz",t:"volaille",i:[["poulet",600,"g"],["courgettes",3,""],["lait de coco",20,"cl"],["oignon",1,""],["riz",300,"g"]]},
+{p:"Escalopes de dinde, purée de pommes de terre et carottes",t:"volaille",i:[["escalopes de dinde",600,"g"],["pommes de terre",800,"g"],["carottes",500,"g"],["lait",10,"cl"]]},
+{p:"Frittata de légumes, pommes de terre et salade",t:"œuf",i:[["œufs",8,""],["pommes de terre",400,"g"],["courgettes",2,""],["poivron",1,""],["salade verte",1,""]]},
+{p:"Shakshuka aux œufs et semoule",t:"œuf",i:[["œufs",6,""],["tomates concassées (boîtes)",2,""],["poivron",2,""],["oignon",1,""],["semoule",250,"g"]]},
+{p:"Soupe de légumes, croque-monsieur et salade",t:"porc",i:[["pommes de terre",600,"g"],["carottes",3,""],["poireaux",2,""],["pain de mie (tranches)",8,""],["tranches de jambon",4,""],["fromage râpé",100,"g"],["salade verte",1,""]]}
+];
+const NONE={plat:"—",t:"",i:[]};
+const LIM={boeuf:1,porc:2,volaille:2,"œuf":2,poisson:3,"légumineuse":3};
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function mk(d){return{plat:d.p,t:d.t,i:d.i,pers:4}}
+function ok(tags){
+  const c={},k=tags.filter(Boolean).length;
+  for(let i=0;i<tags.length;i++){if(tags[i])c[tags[i]]=(c[tags[i]]||0)+1;if(i&&tags[i]&&tags[i]===tags[i-1])return false}
+  for(const t in LIM)if((c[t]||0)>LIM[t])return false;
+  if((c.poisson||0)<(k>=5?2:k>=3?1:0))return false;
+  if((c["légumineuse"]||0)<(k>=4?1:0))return false;
+  return true}
+function gen(key){
+  const pr=getPres(key),idx=pr.map((p,n)=>portions(p)?n:-1).filter(n=>n>=0);
+  let best=null;
+  for(let a=0;a<500;a++){
+    const pick=shuffle(CAT).slice(0,idx.length),tags=Array(7).fill("");
+    idx.forEach((n,x)=>tags[n]=pick[x].t);
+    best=pick;if(ok(tags))break}
+  const out=Array.from({length:7},()=>({...NONE}));
+  idx.forEach((n,x)=>out[n]=mk(best[x]));
+  const w=store("weeks")||{};w[key]=out;store("weeks",w);push("w",key,out)}
+function swap(key,n){
+  const w=store("weeks")||{},days=JSON.parse(JSON.stringify(weeks()[key])),used=new Set(days.map(j=>j.plat));
+  const cand=shuffle(CAT.filter(d=>!used.has(d.p)));
+  const d=cand.find(d=>ok(days.map((j,i)=>i===n?d.t:j.t||"")))||cand[0]||CAT[0];
+  days[n]=mk(d);w[key]=days;store("weeks",w);push("w",key,days,n)}
+const $=id=>document.getElementById(id);
+const store=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}};
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse=s=>{const[a,b,c]=s.split("-").map(Number);return new Date(a,b-1,c)};
+const monday=d=>{const x=new Date(d);x.setDate(x.getDate()-((x.getDay()+6)%7));x.setHours(0,0,0,0);return x};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const fr={day:"numeric",month:"short"};
+let cur=monday(new Date()),tab="plan",catF="";
+
+function weeks(){return Object.assign({},SEED,store("weeks")||{})}
+function getPres(key){const all=store("pres")||{};return all[key]||Array.from({length:7},()=>({m:0,mn:4,s:1,sn:4}))}
+function setPres(key,p,i){const all=store("pres")||{};all[key]=p;store("pres",all);push("p",key,p,i)}
+const portions=p=>(p.m?p.mn:0)+(p.s?p.sn:0);
+function importData(o){
+  if(!o||!/^\d{4}-\d{2}-\d{2}$/.test(o.start)||!Array.isArray(o.jours)||o.jours.length!==7)throw new Error("Format invalide");
+  o.jours.forEach(j=>{if(o.pers&&!j.pers)j.pers=o.pers});
+  const w=store("weeks")||{};w[iso(monday(parse(o.start)))]=o.jours;store("weeks",w);
+}
+(function fromHash(){
+  if(location.hash.startsWith("#d=")){try{
+    const o=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(location.hash.slice(3))))));
+    const c0=[...CAT,...(o.c||[])],W={};
+    Object.keys(o.w||{}).forEach(k=>W[k]=o.w[k].map(j=>{if(typeof j!=="string")return j;const d=c0.find(x=>x.p===j);return d?mk(d):{...NONE}}));
+    store("weeks",Object.assign(store("weeks")||{},W));
+    store("pres",Object.assign(store("pres")||{},o.p||{}));
+    if(o.c){const c=store("custom")||[];o.c.forEach(d=>{if(!c.some(x=>x.p===d.p))c.push(d)});store("custom",c)}
+  }catch(e){}history.replaceState(null,"",location.pathname)}
+})();
+
+function scale(q,u,f){if(q==null)return null;const v=q*f;return u===""?Math.ceil(v-1e-9):Math.max(5,Math.round(v/5)*5)}
+function qty(q,u){if(q==null)return"";if(u==="g"&&q>=1000)return(q/1000).toString().replace(".",",")+" kg ";return q.toString().replace(".",",")+(u?" "+u+" ":" ")}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function link(j){return j.lien&&/^https?:\/\//.test(j.lien)?j.lien:"https://www.marmiton.org/recettes/recherche.aspx?aqt="+encodeURIComponent(j.plat)}
+function dateBox(d){return `<div class="date"><span>${d.toLocaleDateString("fr-FR",{weekday:"short"})}</span><b>${d.getDate()}</b><span>${d.toLocaleDateString("fr-FR",{month:"short"})}</span></div>`}
+function who(p){const a=[];if(p.m)a.push("Midi : "+p.mn+" pers.");if(p.s)a.push("Soir : "+p.sn+" pers.");return a.join(" — ")}
+
+let fm="";
+function parseIng(txt){return txt.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
+  const m=l.match(/^(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l)?\s+(.+)$/i);
+  if(!m)return[l,null,""];
+  let q=parseFloat(m[1].replace(",",".")),u=(m[2]||"").toLowerCase();
+  if(u==="kg"){q*=1000;u="g"}else if(u==="l"){q*=100;u="cl"}else if(u==="ml"){q/=10;u="cl"}
+  return[m[3].trim(),q,u]})}
+function formHtml(F){const m=fm;fm="";
+  return `<details${m?" open":""}><summary>Ajouter un plat</summary><div class="form"><input id="dn" placeholder="Nom du plat" aria-label="Nom du plat"><select id="dt" aria-label="Famille de protéine">${Object.keys(F).map(t=>`<option value="${t}">${F[t]}</option>`).join("")}</select><textarea id="di" aria-label="Ingrédients" placeholder="Un ingrédient par ligne, pour 4 personnes :&#10;300 g riz&#10;3 courgettes&#10;2 boîtes de thon"></textarea><button id="da" class="on">Enregistrer le plat</button><span class="msg" id="dm">${m}</span><p class="sm">La famille de protéine sert à varier les menus : choisis celle du plat principal.</p></div></details>`}
+function bindForm(v){
+  $("da").onclick=()=>{
+    const name=$("dn").value.trim(),t=$("dt").value,i=parseIng($("di").value);
+    if(!name||!i.length){$("dm").textContent=" Indique un nom et au moins un ingrédient";return}
+    if(CAT.some(d=>d.p.toLowerCase()===name.toLowerCase())){$("dm").textContent=" Ce plat existe déjà";return}
+    const d={p:name,t,i,c:1},c=store("custom")||[];c.push(d);store("custom",c);CAT.push(d);catF="";fm=" Plat ajouté";push("c",null,c);render()};
+  v.querySelectorAll("button[data-del]").forEach(b=>b.onclick=()=>{
+    const n=b.dataset.del;store("custom",(store("custom")||[]).filter(d=>d.p!==n));
+    const k=CAT.findIndex(d=>d.p===n);if(k>=0)CAT.splice(k,1);push("c",null,store("custom")||[]);render()})}
+function loadCustom(){(store("custom")||[]).forEach(d=>{if(!CAT.some(x=>x.p===d.p))CAT.push(d)})}
+function reloadCustom(){for(let i=CAT.length-1;i>=0;i--)if(CAT[i].c)CAT.splice(i,1);loadCustom()}
+const b64e=t=>btoa(unescape(encodeURIComponent(t))),b64d=t=>decodeURIComponent(escape(atob(t.replace(/\n/g,""))));
+function cfg(){
+  const c=store("sync")||{};let r=c.repo||"";
+  if(!r){const m=location.hostname.match(/^(.+)\.github\.io$/),seg=location.pathname.split("/")[1]||"";
+    if(m)r=m[1]+"/"+(seg&&!seg.includes(".")?seg:m[1]+".github.io")}
+  return{repo:r,token:c.token||""}}
+const ghUrl=c=>"https://api.github.com/repos/"+c.repo+"/contents/data.json";
+const ghHead=c=>Object.assign({Accept:"application/vnd.github+json"},c.token?{Authorization:"Bearer "+c.token}:{});
+async function ghGet(c){
+  const r=await fetch(ghUrl(c),{headers:ghHead(c),cache:"no-store"});
+  if(r.status===404)return{data:{w:{},p:{},c:[],k:{}},sha:null};
+  if(!r.ok)throw new Error(r.status===401||r.status===403?"jeton refusé":"erreur "+r.status);
+  const j=await r.json();return{data:JSON.parse(b64d(j.content)),sha:j.sha}}
+async function ghPut(c,data,sha){
+  const body={message:"Mise à jour des menus",content:b64e(JSON.stringify(data))};if(sha)body.sha=sha;
+  const r=await fetch(ghUrl(c),{method:"PUT",headers:Object.assign({"Content-Type":"application/json"},ghHead(c)),body:JSON.stringify(body)});
+  if(r.status===409||r.status===422)return"conflict";
+  if(!r.ok)throw new Error(r.status===401||r.status===403?"jeton refusé":"erreur "+r.status);
+  return"ok"}
+async function pushAll(c){
+  const k={};try{Object.keys(localStorage).filter(x=>x.startsWith("c:")).forEach(x=>k[x.slice(2)]=store(x))}catch(e){}
+  await ghPut(c,{w:store("weeks")||{},p:store("pres")||{},c:store("custom")||[],k},null)}
+async function pull(){
+  const c=cfg();if(!c.repo)return;
+  try{const{data,sha}=await ghGet(c);
+    if(!sha){if(c.token){await pushAll(c);setMsg(" Synchronisation activée")}return}
+    store("weeks",Object.assign(store("weeks")||{},data.w||{}));
+    store("pres",Object.assign(store("pres")||{},data.p||{}));
+    Object.keys(data.k||{}).forEach(k=>store("c:"+k,data.k[k]));
+    if(data.c){store("custom",data.c);reloadCustom()}
+    setMsg(" Synchronisé")}
+  catch(e){setMsg(" Synchronisation impossible ("+e.message+")")}}
+let q=Promise.resolve();
+function push(part,key,val,i){const c=cfg();if(!c.repo||!c.token)return;q=q.then(()=>doPush(c,part,key,val,i))}
+async function doPush(c,part,key,val,i){
+  setMsg(" Synchronisation…");
+  try{for(let a=0;a<4;a++){
+    const{data,sha}=await ghGet(c);
+    if(part==="c")data.c=val;
+    else{const o=data[part]=data[part]||{};if(i!=null&&Array.isArray(o[key]))o[key][i]=val[i];else o[key]=val}
+    if(await ghPut(c,data,sha)==="ok"){setMsg(" Synchronisé");return}}
+    setMsg(" Conflit de synchronisation : réessaie")}
+  catch(e){setMsg(" Synchronisation impossible ("+e.message+")")}}
+function render(){
+  const key=iso(cur),data=weeks()[key],pr=getPres(key),today=iso(new Date());
+  $("lbl").textContent="Du "+cur.toLocaleDateString("fr-FR",fr)+" au "+addDays(cur,6).toLocaleDateString("fr-FR",fr);
+  [["tPlan","plan"],["tMenu","menu"],["tList","list"],["tCat","cat"]].forEach(([id,t])=>$(id).classList.toggle("on",tab===t));
+  const v=$("view");
+  if(tab==="plan"){
+    v.innerHTML=pr.map((p,n)=>{const d=addDays(cur,n);
+      const row=(k,nk,lab)=>`<div class="row"><label><input type="checkbox" data-d="${n}" data-k="${k}" ${p[k]?"checked":""}> ${lab}</label><input type="number" min="1" max="20" data-d="${n}" data-k="${nk}" value="${p[nk]}" aria-label="Personnes ${lab.toLowerCase()}"> pers.</div>`;
+      return `<section class="day${iso(d)===today?" today":""}">${dateBox(d)}<div>${row("m","mn","Midi")}${row("s","sn","Soir")}${data&&data[n].plat!=="—"?`<p class="sm">${esc(data[n].plat)}</p>`:""}</div></section>`}).join("")+`<p><button id="gen" class="on">Générer les menus de la semaine</button><span class="msg" id="gm"></span></p><p class="sm">Les plats sont choisis parmi 30 recettes équilibrées (protéine, féculent, légumes), avec des protéines variées sur la semaine : poisson, légumineuses, peu de viande rouge et de charcuterie. Cela remplace le menu de cette semaine.</p>`;
+    v.querySelectorAll("input").forEach(c=>c.onchange=()=>{
+      const p=getPres(key),x=p[+c.dataset.d],k=c.dataset.k;
+      x[k]=c.type==="checkbox"?(c.checked?1:0):Math.min(20,Math.max(1,parseInt(c.value)||1));
+      setPres(key,p,+c.dataset.d)});
+    $("gen").onclick=()=>{gen(key);$("gm").textContent=" Menus générés : voir l’onglet Menu"};
+    return;
+  }
+  if(tab==="cat"){
+    const F={poisson:"Poisson",volaille:"Volaille",boeuf:"Bœuf haché",porc:"Porc et charcuterie","œuf":"Œufs","légumineuse":"Légumineuses"};
+    const list=CAT.filter(d=>!catF||d.t===catF);
+    v.innerHTML=formHtml(F)+`<div class="tabs"><button data-f="" class="${catF?"":"on"}">Tous (${CAT.length})</button>${Object.keys(F).map(t=>`<button data-f="${t}" class="${catF===t?"on":""}">${F[t]}</button>`).join("")}</div>`+
+    list.map(d=>`<section class="day" style="grid-template-columns:1fr"><div><h2>${esc(d.p)}</h2><p class="sm">${F[d.t]} · quantités pour 4 personnes</p><ul class="ch">${d.i.map(x=>`<li>${esc(qty(x[1],x[2])+x[0])}</li>`).join("")}</ul><a class="r" href="${esc(link({plat:d.p}))}" target="_blank" rel="noopener">Chercher une recette</a>${d.c?` <button data-del="${esc(d.p)}">Supprimer</button>`:""}</div></section>`).join("");
+    v.querySelectorAll("button[data-f]").forEach(b=>b.onclick=()=>{catF=b.dataset.f;render()});
+    bindForm(v);
+    return}
+  if(!data){v.innerHTML='<p class="empty">Aucun menu pour cette semaine.<br>Renseigne les présences puis clique sur « Générer les menus », ou ajoute un menu avec « Ajouter ou modifier une semaine » en bas de page.</p>';return}
+  if(tab==="menu"){
+    v.innerHTML=data.map((j,n)=>{const d=addDays(cur,n),p=pr[n],po=portions(p),f=po/(j.pers||4);
+      if(!po)return `<section class="day dim">${dateBox(d)}<div><h2>${esc(j.plat)}</h2><p class="sm">Pas de repas prévu</p></div></section>`;
+      return `<section class="day${iso(d)===today?" today":""}">${dateBox(d)}
+      <div><h2>${j.plat==="—"?"Pas de plat choisi":esc(j.plat)}</h2><p class="sm">${who(p)}</p><ul class="ch">${j.i.map(x=>`<li>${esc(qty(scale(x[1],x[2],f),x[2])+x[0])}</li>`).join("")}</ul>
+      ${j.plat==="—"?"":`<a class="r" href="${esc(link(j))}" target="_blank" rel="noopener">${j.lien?"Voir la recette":"Chercher une recette"}</a> `}<button data-sw="${n}">Changer de plat</button></div></section>`}).join("");
+    v.querySelectorAll("button[data-sw]").forEach(b=>b.onclick=()=>{swap(key,+b.dataset.sw);render()});
+  }else{
+    const m={};
+    data.forEach((j,n)=>{const po=portions(pr[n]);if(!po)return;const f=po/(j.pers||4);
+      j.i.forEach(([nm,q,u])=>{const k=nm+"|"+u;if(!m[k])m[k]={n:nm,u,q:null};const s=scale(q,u,f);if(s!=null)m[k].q=(m[k].q||0)+s})});
+    const items=Object.values(m).sort((a,b)=>a.n.localeCompare(b.n,"fr"));
+    if(!items.length){v.innerHTML='<p class="empty">Aucun repas prévu cette semaine.<br>Renseigne les présences pour générer la liste.</p>';return}
+    const done=store("c:"+key)||[];
+    v.innerHTML='<div class="list">'+items.map(x=>{const id=x.n+"|"+x.u;
+      return `<label><input type="checkbox" data-id="${esc(id)}" ${done.includes(id)?"checked":""}><span>${esc(qty(x.q,x.u)+x.n)}</span></label>`}).join("")+'</div><p><button id="copy">Copier la liste</button><span class="msg" id="cm"></span></p>';
+    v.querySelectorAll("input").forEach(c=>c.onchange=()=>{
+      const s=new Set(store("c:"+key)||[]);c.checked?s.add(c.dataset.id):s.delete(c.dataset.id);store("c:"+key,[...s]);push("k",key,[...s])});
+    $("copy").onclick=()=>{const t=items.map(x=>"- "+qty(x.q,x.u)+x.n).join("\n");
+      (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>$("cm").textContent=" Copié").catch(()=>$("cm").textContent=" Copie impossible")};
+  }
+}
+$("prev").onclick=()=>{cur=addDays(cur,-7);render()};
+$("next").onclick=()=>{cur=addDays(cur,7);render()};
+$("now").onclick=()=>{cur=monday(new Date());render()};
+$("tPlan").onclick=()=>{tab="plan";render()};
+$("tMenu").onclick=()=>{tab="menu";render()};
+$("tList").onclick=()=>{tab="list";render()};
+$("tCat").onclick=()=>{tab="cat";render()};
+$("imp").onclick=()=>{try{const o=JSON.parse($("json").value);importData(o);cur=monday(parse(o.start));$("json").value="";$("msg").textContent=" Semaine enregistrée";render()}catch(e){$("msg").textContent=" JSON invalide : vérifie le format"}};
+function shareUrl(){
+  const lim=iso(addDays(monday(new Date()),-7)),w={},p={},all=store("weeks")||{},pr=store("pres")||{};
+  Object.keys(all).filter(k=>k>=lim).forEach(k=>w[k]=all[k].map(j=>j.plat!=="—"&&CAT.some(d=>d.p===j.plat)?j.plat:j));
+  Object.keys(pr).filter(k=>k>=lim).forEach(k=>p[k]=pr[k]);
+  const o={w,p,c:store("custom")||[]};
+  return location.origin+location.pathname+"#d="+encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(o)))))}
+function setMsg(t){["msg","msg2"].forEach(id=>{if($(id))$(id).textContent=t})}
+async function doShare(){
+  const u=shareUrl();
+  try{if(navigator.share){await navigator.share({title:"Menus de la semaine",url:u});return}}catch(e){if(e&&e.name==="AbortError")return}
+  try{await navigator.clipboard.writeText(u);setMsg(" Lien copié : colle-le dans un message")}catch(e){setMsg(" Copie impossible")}}
+$("share").onclick=doShare;
+$("share2").onclick=doShare;
+$("sv").onclick=()=>{store("sync",{repo:$("sr").value.trim(),token:$("st").value.trim()});setMsg(" Synchronisation…");pull().then(render)};
+{const c=cfg();$("sr").value=c.repo;$("st").value=c.token}
+loadCustom();render();
+pull().then(render);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull().then(render)});
+</script>
+</body>
+</html>
